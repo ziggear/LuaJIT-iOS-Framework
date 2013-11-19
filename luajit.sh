@@ -1,52 +1,59 @@
-LUAJIT=luajit-2.0
-DEVDIR=/Applications/Xcode.app/Contents/Developer/Platforms
-IOSVER=iPhoneOS5.1.sdk
-SIMVER=iPhoneSimulator5.1.sdk
-IOSDIR=$DEVDIR/iPhoneOS.platform/Developer
-SIMDIR=$DEVDIR/iPhoneSimulator.platform/Developer
-IOSBIN=$IOSDIR/usr/bin/
-SIMBIN=$SIMDIR/usr/bin/
+#!/bin/sh
 
-BUILD_DIR=build
+#download the source
+LUASRC_NAME=LuaJIT-2.0.2.tar.gz
+LUASRC_URL=http://luajit.org/download/LuaJIT-2.0.2.tar.gz
+if [ -e $LUASRC_NAME ] 
+then
+	echo 'file exist'
+else
+	curl $LUASRC_URL -o $LUASRC_NAME
+fi
+tar -zxvf $LUASRC_NAME
+
+#prepare the environment
+LUAJIT=LuaJIT-2.0.2
+ISDK=`xcode-select -print-path`/Platforms/iPhoneOS.platform/Developer
+ISDKVER=iPhoneOS6.1.sdk
+ISDKP=$ISDK/usr/bin/
+CC=/Applications/Xcode.app/Contents/Developer/usr/llvm-gcc-4.2/bin/llvm-gcc-4.2
 
 FRAMEWORK_NAME=LuaJIT
 FRAMEWORK_DIR=$FRAMEWORK_NAME.framework
-rm -rf $FRAMEWORK_DIR
-rm -rf $BUILD_DIR
-rm *.a 1>/dev/null 2>/dev/null
 
-mkdir -p $BUILD_DIR
- 
-make -j -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=arm cleaner
-make -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=arm amalg CROSS=$IOSBIN TARGET_FLAGS="-isysroot $IOSDIR/SDKs/$IOSVER -arch armv7"
-mv $LUAJIT/src/libluajit.a $BUILD_DIR/libluajitA7.a
-make -j -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=arm cleaner
-make -j -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=arm amalg CROSS=$IOSBIN TARGET_FLAGS="-isysroot $IOSDIR/SDKs/$IOSVER -arch armv6"
-mv $LUAJIT/src/libluajit.a $BUILD_DIR/libluajitA6.a
-make -j -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=x86 cleaner
-make -j -C $LUAJIT HOST_CFLAGS="-arch i386" HOST_LDFLAGS="-arch i386" TARGET_SYS=iOS TARGET=x86 amalg CROSS=$SIMBIN TARGET_FLAGS="-isysroot $SIMDIR/SDKs/$SIMVER -arch i386"
-mv $LUAJIT/src/libluajit.a $BUILD_DIR/libluajit32.a
+cd $LUAJIT
 
+#clean
+rm -rf iOS
+mkdir iOS
 
-################################################################################
-# Create iOS framework
-mkdir -p $FRAMEWORK_DIR
+#make for iP3/4
+make HOST_CC="$CC -m32 -arch i386" CROSS=$ISDKP TARGET_FLAGS="-arch armv7 -isysroot $ISDK/SDKs/$ISDKVER" TARGET=arm TARGET_SYS=iOS clean all
+cp -p src/libluajit.a iOS/libluajit-armv7.a
 
-# Combine all libraries into one - required for framework
-libtool -o $FRAMEWORK_DIR/$FRAMEWORK_NAME $BUILD_DIR/*.a 2> /dev/null
+#make for iP5
+make HOST_CC="$CC -m32 -arch i386" CROSS=$ISDKP TARGET_FLAGS="-arch armv7s -isysroot $ISDK/SDKs/$ISDKVER" TARGET=arm TARGET_SYS=iOS clean all
+cp -p src/libluajit.a iOS/libluajit-armv7s.a
 
-# Copy public headers into framework
-mkdir -p $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/lua.h $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/lauxlib.h $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/lualib.h $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/luajit.h $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/lua.hpp $FRAMEWORK_DIR/Headers
-cp $LUAJIT/src/luaconf.h $FRAMEWORK_DIR/Headers
+#make for Simulator
+make CC="$CC -m32" clean all
+cp -p src/libluajit.a iOS/libluajit-i386.a
 
+#combine files
+make clean
+mkdir $FRAMEWORK_DIR
+mkdir $FRAMEWORK_DIR/Headers
+lipo -create iOS/libluajit-*.a -output ./$FRAMEWORK_DIR/LuaJIT
+rm iOS/libluajit-*.a
+
+#copy headers
+cp src/luajit.h src/luaconf.h src/lua.h src/lua.hpp src/lauxlib.h src/lualib.h ./$FRAMEWORK_DIR/Headers
+mv $FRAMEWORK_DIR/Headers/luajit.h $FRAMEWORK_DIR/Headers/lua_jit.h
 
 # Fix-up header files to use standard framework-style include paths
-for FILE in `find "$FRAMEWORK_DIR/Headers" -type f`
+for FILE in *.h
 do
 	sed -i "" "s:#include \"\(.*\)\":#include <$FRAMEWORK_NAME/\1>:" "$FILE"
 done
+
+cd ..
