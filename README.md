@@ -30,3 +30,7 @@ I attached a Demo project at __"LuaJIT-iOS-Framework/Demo/LuaJITDemo.zip"__ , (m
 
 If there is any problems when using this, read the [LuaJIT Install Page](http://luajit.org/install.html) , read the [lua C API](http://www.lua.org/manual/5.2/manual.html#4), or contact [me](https://github.com/ziggear) via github
 
+SEE ALSO
+--------
+* [Xcode and command-line tools](https://developer.apple.com/support/xcode/)
+* [LuaExt on Github](https://github.com/ziggear/luaext)

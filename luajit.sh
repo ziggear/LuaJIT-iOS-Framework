@@ -51,9 +51,17 @@ cp src/luajit.h src/luaconf.h src/lua.h src/lua.hpp src/lauxlib.h src/lualib.h .
 mv $FRAMEWORK_DIR/Headers/luajit.h $FRAMEWORK_DIR/Headers/lua_jit.h
 
 # Fix-up header files to use standard framework-style include paths
+FRAMEWORK_HEADER=$FRAMEWORK_DIR/Headers/LuaJIT.h
+if [ -e $FRAMEWORK_HEADER ]
+then
+	echo 'FRAMEWORK HEADER EXIST'
+	rm $FRAMEWORK_HEADER
+fi
+
+cd $FRAMEWORK_DIR/Headers/
 for FILE in *.h
 do
-	sed -i "" "s:#include \"\(.*\)\":#include <$FRAMEWORK_NAME/\1>:" "$FILE"
+	#sed -i "" "s:#include \"\(.*\)\":#include <$FRAMEWORK_NAME/\1>:" "$FILE"
+	echo "#include <$FRAMEWORK_NAME/$FILE>" >> LuaJIT.h
 done
-
-cd ..
+cd ../../
